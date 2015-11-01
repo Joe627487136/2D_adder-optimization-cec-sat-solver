@@ -1,0 +1,107 @@
+.include "../50002/nominal.jsim"
+.include "../50002/stdcell.jsim"
+//.include "../50002/2dcheckoff_1"
+.include "../50002/lab3adder.jsim"
+
+//Full adder without carryout (since PG block calculates that)
+//Tpd = 2*xor2tpd = 0.28
+.subckt FAsum a b cin s
+Xxor1 a b axorb xor2
+Xxor2 axorb cin s xor2
+.ends
+
+//32bit nor to calculate Z
+//Tpd = nor4tpd + nor4tpd + nor2tpd = 0.24 + 0.05 = 0.29
+.subckt nor32 in[31:0] out
+Xnor1 in[7:0] in[15:8] in[23:16] in[31:24] out1[7:0] nor4
+Xnor2 out1[1:0] out1[3:2] out1[5:4] out1[7:6] out2[1:0] nor4
+Xnor3 out21 out20 out nor2
+.ends
+
+//Circuit to calculate V
+//Tpd = invertertpd + nand3tpd+nand2tpd = 0.02+0.05+0.03 = 0.1
+.subckt vckt a31 b31 s31 v
+Xnot1 a31 na31 inverter
+Xnot2 b31 nb31 inverter
+Xnot3 s31 ns31 inverter
+Xnand1 a31 b31 ns31 abns nand3
+Xnand2 na31 nb31 s31 nanbs nand3
+Xnand3 abns nanbs v nand2
+.ends
+
+//Lowest level inverted PG block
+//Tpd = max(nand2tpd, nor2tpd) = max(0.03, 0.05) = 0.05
+.subckt invPGbase a b invP invG
+Xnand a b invG nand2
+Xnor a b invP nor2
+.ends
+
+//Lowest level carry out block (same level as highest level PG)
+//Tpd = and2tpd + nor2tpd = 0.12 + 0.05 = 0.17
+.subckt COfinal invP0a invG0a invc0 cf0 cfa
+Xcand1 invG0a invc0 cand1 and2
+Xcand2 invG0a invP0a cand2 and2
+Xcnor cand1 cand2 cfa nor2
+Xinv invc0 cf0 inverter
+.ends
+
+//PG block that takes inverted input and produces non-inverted output
+//Tpd = and2tpd + nor2tpd = 0.12 + 0.05 = 0.17
+.subckt PG invPij invGij invPj1k invGj1k invCi Pik Gik Cj1 Ci
+//calculate Pik
+Xpnor invPij invPj1k Pik nor2
+//calculate Gj1k
+Xgand1 invGij invGj1k gand1 and2
+Xgand2 invGj1k invPj1k gand2 and2
+Xgnor gand1 gand2 Gik nor2
+//calculate Cj1
+Xcand1 invGij invCi cand1 and2
+Xcand2 invGij invPij cand2 and2
+Xcnor cand1 cand2 Cj1 nor2
+//calculate Ci
+Xinv invCi Ci inverter
+.ends
+
+//PG block that takes non-inverted input and produces inverted output
+//Tpd = and2tpd + nor2tpd = 0.12 + 0.05 = 0.17
+.subckt invPG Pij Gij Pj1k Gj1k Ci invPik invGik invCj1 invCi
+//calculate invPik
+Xpnand Pij Pj1k invPik nand2
+//Calculate invGik
+Xgand Pj1k Gij gand and2
+Xgnor gand Gj1k invGik nor2
+//Calculate invCj1
+Xcand Pij Ci cand and2
+Xcnor cand Gij invCj1 nor2
+//Calculate invCi
+Xinv Ci invCi inverter
+.ends
+
+//32-bit adder with carry-lookahead
+.subckt CLAadder32 ALUFN[0] A[31:0] B[31:0] S[31:0] Z V N
+//XOR for subtraction
+Xxor B[31:0] ALUFN[0]#32 XB[31:0] xor2
+
+//PG tree
+Xpg1 A[31:0] XB[31:0] invP1[31:0] invG1[31:0] invPGbase
+Xpg2 invP1[30:0:2] invG1[30:0:2] invP1[31:1:2] invG1[31:1:2] invC[30:0:2] P2[30:0:2] G2[30:0:2] C[31:1:2] C[30:0:2] PG
+Xpg3 P2[28:0:4] G2[28:0:4] P2[30:2:4] G2[30:2:4] C[28:0:4] invP3[28:0:4] invG3[28:0:4] invC[30:2:4] invC[28:0:4] invPG
+Xpg4 invP3[24:0:8] invG3[24:0:8] invP3[28:4:8] invG3[28:4:8] invC[24:0:8] P4[24:0:8] G4[24:0:8] C[28:4:8] C[24:0:8] PG
+Xpg5 P4[16:0:16] G4[16:0:16] P4[24:8:16] G4[24:8:16] C[16:0:16] invP5[16:0:16] invG5[16:0:16] invC[24:8:16] invC[16:0:16] invPG 
+//c0 is ALUFN[0], but we want to feed in invc0
+Xcofinal invP50 invG50 invc0 C0 C16 COfinal
+Xnot ALUFN[0] invALUFN[0] inverter
+.connect invc0 invALUFN[0]
+
+//Adders
+Xadder A[31:0] XB[31:0] C[31:0] S[31:0]
+
+//Z is true when S is zero
+Xz S[31:0] Z nor32
+//V is true when a31 and xb31 are the same but s31 is different
+Xv A[31] XB[31] S[31] V vckt
+//N is true when S is negative (S31 =1)
+.connect S[31] N
+.ends
+
+
