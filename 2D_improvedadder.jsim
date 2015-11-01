@@ -10,6 +10,21 @@ Xxor1 a b axorb xor2
 Xxor2 axorb cin s xor2
 .ends
 
+//Full adder 
+//TpdS = 0.28; TpdCo = 3*nand2tpd + nad3tpd = 0.09 + 0.05 = 0.14
+.subckt FA a b cin s co
+Xsum a b cin s FAsum
+Xnand1 a b nab nand2
+Xnand2 a cin nac nand2
+Xnand3 b cin nbc nand2
+Xnand4 nab nbc nac co nand3
+.ends
+
+//Connecting circuit
+.subckt knex a b
+.connect a b
+.ends
+
 //32bit nor to calculate Z
 //Tpd = nor4tpd + and4tpd + and2tpd = 0.12 + 0.16 + 0.12 = 0.4
 .subckt nor32 in[31:0] out
@@ -142,12 +157,98 @@ Xcofinal invP50 invG50 invc0 C616 C60 PGC
 Xnot ALUFN[0] invALUFN[0] inverter
 .connect invc0 invALUFN[0]
 
-//Adders and mux
+//Adders and muxO
 Xmux0 invC50#8 C20[7:0] C21[7:0] C[7:0] mux2
 Xmux1 invC58#8 C20[15:8] C21[15:8] C[15:8] mux2
 Xmux2 invC516#8 C20[23:16] C21[23:16] C[23:16] mux2
 Xmux3 invC524#8 C20[31:24] C21[31:24] C[31:24] mux2
 Xadder A[31:0] XB[31:0] C[31:0] S[31:0] FAsum
+
+//Z is true when S is zero
+Xz S[31:0] Z nor32
+//V is true when a31 and xb31 are the same but s31 is different
+Xv A[31] XB[31] S[31] V vckt
+//N is true when S is negative (S31 =1)
+.connect S[31] N
+.ends
+
+
+//32-bit adder with carry-select
+//Tpd of Z = invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*1  + mux2tpd + FAsumtpd + nor32tpd 
+//= 0.05 + 0.17*4 + 0.17 +0.17*1 + 0.12 + 0.28 + 0.4 
+// = 0.05 + 1.04 + 0.68 = 1.77
+.subckt aadder32 ALUFN[0] A[31:0] B[31:0] S[31:0] Z V N
+//XOR for subtraction
+Xxor B[31:0] ALUFN[0]#32 XB[31:0] xor2
+
+//Ripple chain with mux
+.connect C[0] ALUFN[0] 
+Xadders1 A[3:0] XB[3:0] C[3:0] S[3:0] COF[3:0] FA
+Xknex1 C[2:0] C[3:1] knex
+
+.connect C0[4] 0
+.connect C1[4] vdd
+Xadders20 A[7:4] XB[7:4] C0[7:4] S0[7:4] CO0[7:4] FA
+Xadders21 A[7:4] XB[7:4] C1[7:4] S_1[7:4] CO1[7:4] FA
+Xknex20 C0[7:5] CO0[6:4] knex
+Xknex21 C1[7:5] CO1[6:4] knex
+Xmux2 COF[3] CO0[7] CO1[7] COF[7] mux2
+Xmux2sum COF[3]#4 S0[7:4] S_1[7:4] S[7:4] mux2
+
+.connect C0[8] 0
+.connect C1[8] vdd
+Xadders30 A[11:8] XB[11:8] C0[11:8] S0[11:8] CO0[11:8] FA
+Xadders31 A[11:8] XB[11:8] C1[11:8] S_1[11:8] CO1[11:8] FA
+Xknex30 C0[11:9] CO0[10:8] knex
+Xknex31 C1[11:9] CO1[10:8] knex
+Xmux3 COF[7] CO0[11] CO1[11] COF[11] mux2
+Xmux3sum COF[7]#4 S0[11:8] S_1[11:8] S[11:8] mux2
+
+.connect C0[12] 0
+.connect C1[12] vdd
+Xadders40 A[15:12] XB[15:12] C0[15:12] S0[15:12] CO0[15:12] FA
+Xadders41 A[15:12] XB[15:12] C1[15:12] S1[15:12] CO1[15:12] FA
+Xknex40 C0[15:13] CO0[14:12] knex
+Xknex41 C1[15:13] CO1[14:12] knex
+Xmux4 COF[11] CO0[15] CO1[15] COF[15] mux2 
+Xmux4sum COF[11]#4 S0[15:12] S1[15:12] S[15:12] mux2
+
+.connect C0[16] 0
+.connect C1[16] vdd
+Xadders50 A[19:16] XB[19:16] C0[19:16] S0[19:16] CO0[19:16] FA
+Xadders51 A[19:16] XB[19:16] C1[19:16] S1[19:16] CO1[19:16] FA
+Xknex50 C0[19:17] CO0[18:16] knex
+Xknex51 C1[19:17] CO1[18:16] knex
+Xmux5 COF[15] CO0[19] CO1[19] COF[19] mux2
+Xmux5sum COF[15]#4 S0[19:16] S1[19:16] S[19:16] mux2
+
+.connect C0[20] 0
+.connect C1[20] vdd
+Xadders60 A[23:20] XB[23:20] C0[23:20] S0[23:20] CO0[23:20] FA
+Xadders61 A[23:20] XB[23:20] C1[23:20] S1[23:20] CO1[23:20] FA
+Xknex60 C0[23:21] CO0[22:20] knex
+Xknex61 C1[23:21] CO1[22:20] knex
+Xmux6 COF[19] CO0[23] CO1[23] COF[23] mux2
+Xmux6sum COF[19]#4 S0[23:20] S1[23:20] S[23:20] mux2
+
+.connect C0[24] 0
+.connect C1[24] vdd
+Xadders70 A[27:24] XB[27:24] C0[27:24] S0[27:24] CO0[27:24] FA
+Xadders71 A[27:24] XB[27:24] C1[27:24] S1[27:24] CO1[27:24] FA
+Xknex70 C0[27:25] CO0[26:24] knex
+Xknex71 C1[27:25] CO1[26:24] knex
+Xmux7 COF[23] CO0[27] CO1[27] COF[27] mux2
+Xmux7sum COF[23]#4 S0[27:24] S1[27:24] S[27:24] mux2
+
+.connect C0[28] 0
+.connect C1[28] vdd
+Xadders80 A[31:28] XB[31:28] C0[31:28] S0[31:28] CO0[31:28] FA
+Xadders81 A[31:28] XB[31:28] C1[31:28] S1[31:28] CO1[31:28] FA
+Xknex80 C0[31:29] CO0[30:28] knex
+Xknex81 C1[31:29] CO1[30:28] knex
+Xmux8 COF[27] CO0[31] CO1[31] COF[31] mux2
+Xmux8sum COF[27]#4 S0[31:28] S1[31:28] S[31:28] mux2
+
 
 //Z is true when S is zero
 Xz S[31:0] Z nor32
