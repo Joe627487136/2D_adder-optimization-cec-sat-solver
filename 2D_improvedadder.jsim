@@ -105,9 +105,9 @@ Xinv Ci invCi inverter
 .ends
 
 //32-bit adder with carry-lookahead
-//Tpd of Z = invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*4 + FAsumtpd + nor32tpd 
-//= 0.05 + 0.17*4 + 0.17 +0.17*4 + 0.28 + 0.4 
-// = 0.05 + 1.53 + 0.68 = 2.26
+//Tpd of Z = xor2tpd + invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*4 + FAsumtpd + nor32tpd 
+//= 0.14 + 0.05 + 0.17*4 + 0.17 +0.17*4 + 0.28 + 0.4 
+// = 0.14 + 0.05 + 1.53 + 0.68 = 2.40
 .subckt CLAadder32 ALUFN[0] A[31:0] B[31:0] S[31:0] Z V N
 //XOR for subtraction
 Xxor B[31:0] ALUFN[0]#32 XB[31:0] xor2
@@ -135,9 +135,9 @@ Xv A[31] XB[31] S[31] V vckt
 .ends
 
 //32-bit adder with carry-lookahead and carry-select
-//Tpd of Z = invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*1  + mux2tpd + FAsumtpd + nor32tpd 
-//= 0.05 + 0.17*4 + 0.17 +0.17*1 + 0.12 + 0.28 + 0.4 
-// = 0.05 + 1.04 + 0.68 = 1.77
+//Tpd of Z = xor2tpd + invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*1  + mux2tpd + FAsumtpd + nor32tpd 
+//= 0.14 + 0.05 + 0.17*4 + 0.17 +0.17*1 + 0.12 + 0.28 + 0.4 
+// = 0.14 + 0.05 + 1.04 + 0.68 = 1.91
 .subckt CLACSadder32 ALUFN[0] A[31:0] B[31:0] S[31:0] Z V N
 //XOR for subtraction
 Xxor B[31:0] ALUFN[0]#32 XB[31:0] xor2
@@ -176,9 +176,9 @@ Xv A[31] XB[31] S[31] V vckt
 
 
 //32-bit adder with carry-select
-//Tpd of Z = invPGbasetpd + PG/invPGtpd*4 + PGCtpd + PG/invPGtpd*1  + mux2tpd + FAsumtpd + nor32tpd 
-//= 0.05 + 0.17*4 + 0.17 +0.17*1 + 0.12 + 0.28 + 0.4 
-// = 0.05 + 1.04 + 0.68 = 1.77
+//Tpd of Z = 4*FAtpd + 7*mux2tpd + xor2tpd + nor32tpd 
+//= 4*0.14 + 0.12*7 +0.14 + 0.4 
+// = 1.94
 .subckt adder32 ALUFN[0] A[31:0] B[31:0] SUM[31:0] Z V N
 //XOR for subtraction
 Xxor B[31:0] ALUFN[0]#32 XB[31:0] xor2
